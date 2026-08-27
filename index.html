@@ -3354,8 +3354,13 @@ function syncForceVizCanvasSize() {
 
 function _fvDefaultPosition() {
   _fvUserMoved = false;
-  const tbH = document.getElementById('toolbar').offsetHeight;
-  forceVizPanelEl.style.top   = Math.round(tbH * 0.5) + 'px';
+  const panW   = forceVizPanelEl.offsetWidth || 393;
+  const tb     = document.getElementById('toolbar');
+  const tbH    = tb.offsetHeight;
+  const vb     = document.getElementById('visualsCtrlBox');
+  const vbRect = vb ? vb.getBoundingClientRect() : tb.getBoundingClientRect();
+  const fits   = (window.innerWidth - panW - 8) >= vbRect.right + 8;
+  forceVizPanelEl.style.top   = fits ? Math.round(tbH * 0.5) + 'px' : Math.round(vbRect.bottom) + 'px';
   forceVizPanelEl.style.right = '8px';
   forceVizPanelEl.style.left  = '';
 }
@@ -3604,10 +3609,12 @@ function drawForceVizElectron() {
   fvc.clearRect(0, 0, W, H);
 
   if ((selectedElectronIdx < 0 || selectedElectronIdx >= electrons.length) && _draggedElectronIdx < 0) {
-    fvc.fillStyle = LIGHT ? 'rgba(0,0,0,0.50)' : 'rgba(255,255,255,0.3)';
-    fvc.font = '13px Lexend, sans-serif';
-    fvc.textAlign = 'center'; fvc.textBaseline = 'middle';
-    fvc.fillText('Click an electron to see its forces', W / 2, H / 2);
+    if (grabWireMode !== 'wire') {
+      fvc.fillStyle = LIGHT ? 'rgba(0,0,0,0.50)' : 'rgba(255,255,255,0.3)';
+      fvc.font = '13px Lexend, sans-serif';
+      fvc.textAlign = 'center'; fvc.textBaseline = 'middle';
+      fvc.fillText('Click an electron to see its forces', W / 2, H / 2);
+    }
     return;
   }
   if (!animParent) return;
