@@ -1000,16 +1000,16 @@
 
     <!-- VISUALS box (grab mode) -->
     <div class="ctrl-box-blue" id="visualsCtrlBox">
+      <span class="ctrl-box-label ctrl-box-label-blue">VISUALS</span>
       <div style="display:flex;flex-direction:column;gap:10px;justify-content:space-evenly;align-self:stretch">
         <div style="display:flex;flex-direction:column;gap:3px">
-          <div class="slider-group" id="zoomSliderRow">
-            <span class="slider-icon" style="visibility:hidden"><img src="images/Turtle.png" style="height:0.85em;vertical-align:middle;display:block"></span>
-            <input type="range" id="zoomSlider" min="-1" max="1" step="0.01" value="0">
+          <div class="slider-group" id="zoomSliderRow" style="width:100%">
             <span class="slider-icon">🔍</span>
-            <div id="forceCtrlBox" style="display:flex;gap:4px;align-items:center;margin-left:8px">
-              <button id="showForcesBtn" class="force-show-btn" style="display:none">Show forces</button>
-              <button id="hideForcesBtn" class="awheel-item">hide forces</button>
-            </div>
+            <input type="range" id="zoomSlider" min="-1" max="1" step="0.01" value="0" style="flex:1;min-width:0;width:auto">
+          </div>
+          <div id="forceCtrlBox" style="display:flex;gap:4px;align-items:center">
+            <button id="showForcesBtn" class="awheel-item" style="display:none">Show forces</button>
+            <button id="hideForcesBtn" class="awheel-item">hide forces</button>
           </div>
         </div>
         <div style="display:flex;justify-content:space-between">
@@ -1037,7 +1037,6 @@
 
     <!-- ELECTRODE box (wire mode) -->
     <div class="ctrl-box-blue" id="wireCtrlBox" style="display:none">
-      <span id="electrodeLbl" class="ctrl-box-label ctrl-box-label-blue" style="color:rgba(255,110,110,0.95)">ELECTRODE</span>
       <div style="display:flex;flex-direction:column;gap:10px;justify-content:space-evenly;align-self:stretch;align-items:center">
         <canvas id="wireDialCanvas" width="80" height="80" style="cursor:pointer;touch-action:none;display:block"></canvas>
         <div style="font-size:16px;font-weight:600;color:rgba(255,60,60,0.95);text-align:center;letter-spacing:0.03em;font-variant-numeric:tabular-nums;margin-top:-20px" id="wireChargeLabel">0.0 V</div>
@@ -1269,7 +1268,7 @@ window.addEventListener('resize', () => {
   }
   if (autoScaleZoom) applyAutoScale();
   if (forceVizPanelEl.style.display !== 'none') {
-    _fvDefaultPosition();
+    if (!_fvUserMoved) _fvDefaultPosition();
     syncForceVizCanvasSize();
     drawForceViz();
   }
@@ -3354,11 +3353,10 @@ function syncForceVizCanvasSize() {
 }
 
 function _fvDefaultPosition() {
-  const panH = forceVizPanelEl.offsetHeight || 512;
-  const tbH  = document.getElementById('toolbar').offsetHeight;
-  const idealTop = Math.round((window.innerHeight - panH) / 2);
-  forceVizPanelEl.style.top   = Math.max(tbH, idealTop) + 'px';
-  forceVizPanelEl.style.right = '20px';
+  _fvUserMoved = false;
+  const tbH = document.getElementById('toolbar').offsetHeight;
+  forceVizPanelEl.style.top   = Math.round(tbH * 0.5) + 'px';
+  forceVizPanelEl.style.right = '8px';
   forceVizPanelEl.style.left  = '';
 }
 
@@ -4211,6 +4209,9 @@ function _ejectValenceElectron(valElec) {
   // Remove electron
   const idx = electrons.indexOf(best);
   if (idx >= 0) electrons.splice(idx, 1);
+  // Clear selection — click guard (line above canvas click handler) prevents re-selection
+  selectedElectronIdx = -1;
+  selectedShell = -1;
   // Start ejection animation
   _wireEjecting.push({ x: sx, y: sy, startX: sx, vx: 2.5, vy: (Math.random() - 0.5) * 1.2, alpha: 1.0 });
 }
@@ -5004,11 +5005,12 @@ document.querySelectorAll('#forceVizPanel .fp-rh').forEach(h => {
   });
 });
 
+let _fvUserMoved = false;
 let _fvDrag = null;
 forceVizPanelEl.addEventListener('mousedown', e => {
   if (e.target.classList.contains('fp-rh')) return;
   const rect = forceVizPanelEl.getBoundingClientRect();
-  _fvDrag = { sx: e.clientX, sy: e.clientY, ol: rect.left, ot: rect.top };
+  _fvDrag = { sx: e.clientX, sy: e.clientY, or: window.innerWidth - rect.right, ot: rect.top };
 });
 
 window.addEventListener('mousemove', e => {
@@ -5026,13 +5028,13 @@ window.addEventListener('mousemove', e => {
     drawForceViz();
   }
   if (_fvDrag) {
-    forceVizPanelEl.style.left = (_fvDrag.ol + e.clientX - _fvDrag.sx) + 'px';
-    forceVizPanelEl.style.top  = (_fvDrag.ot + e.clientY - _fvDrag.sy) + 'px';
-    forceVizPanelEl.style.right = 'auto';
+    forceVizPanelEl.style.right = Math.max(0, _fvDrag.or - (e.clientX - _fvDrag.sx)) + 'px';
+    forceVizPanelEl.style.top   = (_fvDrag.ot + e.clientY - _fvDrag.sy) + 'px';
+    forceVizPanelEl.style.left  = '';
   }
 });
 
-window.addEventListener('mouseup', () => { _fvResize = null; _fvDrag = null; });
+window.addEventListener('mouseup', () => { _fvResize = null; if (_fvDrag) _fvUserMoved = true; _fvDrag = null; });
 
 // ─── Dev panel wiring ─────────────────────────────────────────────────────────
 var syncShellDevSliders = function() {}; // populated by _wireDevSliders once shell groups are built
